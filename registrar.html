@@ -21,7 +21,6 @@
     }
     .camera-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 
-    /* Vista de cámara con botón flotante */
     .camera-view{position:relative}
     #cameraVideo{
       display:block;width:100%;height:auto;max-height:70vh;
@@ -90,7 +89,7 @@
     .dropzone.drag{background:rgba(25,25,25,.65)}
     .dropzone img.preview{
       max-width:100%;
-      max-height:220px;          /* 🔹 NO tapa el formulario */
+      max-height:220px;
       height:auto;
       border-radius:10px;
       display:block;
@@ -105,7 +104,6 @@
     .validacion-msg.ok{color:#9be49b}
     .validacion-msg.err{color:#ff9a9a}
 
-    /* Toast */
     .toast{
       position:fixed;left:50%;top:24px;transform:translateX(-50%);
       background:rgba(20,20,20,.96);color:#fff;border:1px solid rgba(255,255,255,.15);
@@ -118,7 +116,6 @@
       to{transform:translateX(-50%) scale(1);opacity:1}
     }
 
-    /* Badge IA y debug opcional */
     #iaBadge{
       display:inline-block;margin-top:8px;padding:4px 8px;border-radius:999px;
       font-size:11px;background:#444;color:#fff;opacity:.9;
@@ -135,7 +132,7 @@
       <h1 class="applebees-title">Applebee’s</h1>
     </div>
     <div class="right-section">
-      <!-- 🔹 Antes decía “Salir”, ahora “Regresar” -->
+      <!-- 🔹 botón Regresar -->
       <button id="btnLogout" class="btn-secondary" type="button">Regresar</button>
     </div>
   </header>
@@ -143,7 +140,7 @@
   <main class="page">
     <p id="userGreeting" class="muted" style="margin-bottom:12px;"></p>
 
-    <!-- ====== RESUMEN DE PUNTOS (deben coincidir con panel.html) ====== -->
+    <!-- RESUMEN PUNTOS -->
     <section class="grid-cards" style="margin-bottom:18px">
       <article class="card">
         <div class="muted">Disponibles</div>
@@ -159,7 +156,7 @@
       </article>
     </section>
 
-    <!-- ====== REGISTRO RÁPIDO EN EL PANEL ====== -->
+    <!-- REGISTRO -->
     <section class="card panel-option" id="subida-ticket">
       <h2>📸 Captura tu ticket y llena tus datos</h2>
 
@@ -178,13 +175,12 @@
           <button id="btnAbrirCamara" type="button" class="btn-primary">📷 Tomar foto</button>
         </div>
 
-        <!-- Estado OCR + IA -->
         <p id="ocrStatus" class="validacion-msg"></p>
         <span id="iaBadge">IA: esperando…</span>
         <pre id="ocrDebug" style="display:none;"></pre>
       </div>
 
-      <!-- === MODAL CÁMARA === -->
+      <!-- MODAL CÁMARA -->
       <div class="camera-modal" id="cameraModal" aria-hidden="true">
         <div class="camera-box">
           <div class="camera-header">
@@ -226,7 +222,7 @@
       </div>
     </section>
 
-    <!-- ====== ÚLTIMOS TICKETS ====== -->
+    <!-- ÚLTIMOS TICKETS -->
     <section class="card" style="margin-top:18px">
       <h3>Mis últimos tickets</h3>
       <table>
@@ -253,10 +249,10 @@
   <!-- Tesseract (OCR) -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
-  <!-- Parser OCR + IA -->
+  <!-- Parser OCR -->
   <script src="ocr.js"></script>
 
-  <!-- Lógica registrar (cámara + OCR + RTDB + puntos) -->
-  <script src="registrr.js"></script>
+  <!-- 🔹 MUY IMPORTANTE: nombre EXACTO del archivo JS -->
+  <script src="registrar.js"></script>
 </body>
 </html>
