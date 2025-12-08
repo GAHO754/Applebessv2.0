@@ -1,5 +1,7 @@
-// registrr.js — RTDB + Cámara + OCR AUTO (sin productos) + puntos 10..35 por total
+// registrar.js — RTDB + Cámara + OCR AUTO (sin productos) + puntos 10..35 por total
 (() => {
+  console.log("[registrar.js] cargado");  // 🔹 para verificar en consola
+
   const $ = id => document.getElementById(id);
 
   // ===== Firebase =====
@@ -25,34 +27,30 @@
   const msgTicket    = $('ticketValidacion');
   const greetEl      = $('userGreeting');
 
-  // Resumen puntos + lista tickets
   const elDisp = $('ptsDisponibles');
   const elResv = $('ptsReservados');
   const elTot  = $('ptsTotales');
   const tbody  = $('tbodyTickets');
+  const toast  = $('awardToast');
 
   const btnBack = $('btnLogout'); // botón “Regresar”
-  const toast   = $('awardToast');
 
   // ===== Parámetros de negocio =====
-  const VENCE_DIAS   = 180;    // vigencia aprox. 6 meses
-  const DAY_LIMIT    = 2;      // tickets por día
-  const MIN_POINTS   = 10;     // mínimo de puntos a otorgar
-  const MAX_POINTS   = 35;     // máximo de puntos a otorgar
-  const MIN_SPEND    = 120;    // gasto mínimo para empezar a escalar
-  const MAX_SPEND    = 1200;   // gasto a partir del cual ya das el máximo
+  const VENCE_DIAS   = 180;
+  const DAY_LIMIT    = 2;
+  const MIN_POINTS   = 10;
+  const MAX_POINTS   = 35;
+  const MIN_SPEND    = 120;
+  const MAX_SPEND    = 1200;
 
-  // ===== Estado =====
-  let isLogged = false;
   let liveStream = null;
   let currentPreviewURL = null;
-  let unsub = []; // listeners RTDB para puntos/tickets
+  let unsub = [];
 
-  // ===== Helpers UI =====
   function setStatus(msg, type='') {
     if (!ocrStatus) return;
     ocrStatus.className = 'validacion-msg';
-    if (type) ocrStatus.classList.add(type); // ok | err
+    if (type) ocrStatus.classList.add(type);
     ocrStatus.textContent = msg || '';
   }
 
@@ -110,16 +108,14 @@
     return file;
   }
 
-  // ===== Cálculo de puntos (10..35) en función del total =====
   function computePointsFromTotal(total) {
     if (!Number.isFinite(total) || total <= 0) return MIN_POINTS;
     const clamped = Math.max(MIN_SPEND, Math.min(MAX_SPEND, total));
-    const t = (clamped - MIN_SPEND) / (MAX_SPEND - MIN_SPEND); // 0..1
+    const t = (clamped - MIN_SPEND) / (MAX_SPEND - MIN_SPEND);
     const pts = Math.round(MIN_POINTS + t * (MAX_POINTS - MIN_POINTS));
     return Math.max(MIN_POINTS, Math.min(MAX_POINTS, pts));
   }
 
-  // ===== Puente con ocr.js =====
   async function waitForOCR(tries = 30, delayMs = 100) {
     for (let i = 0; i < tries; i++) {
       if (typeof window.processTicketWithIA === "function") return true;
@@ -142,9 +138,8 @@
     }
     try {
       setStatus("🕐 Escaneando ticket…");
-      const ret = await window.processTicketWithIA(file); // { text, folio, fecha, total }
+      const ret = await window.processTicketWithIA(file);
 
-      // Rellenar campos (permitimos editar por si el cliente quiere corregir)
       enableEdits();
 
       if (ret?.folio && /^\d{5,7}$/.test(ret.folio) && iNum)   iNum.value   = ret.folio;
@@ -156,12 +151,8 @@
       const totalTxt = iTotal?.value ? `$${Number(iTotal.value).toFixed(2)}` : "(sin total)";
       setStatus(`✓ Ticket leído. Folio: ${folioTxt} · Fecha: ${fechaTxt} · Total: ${totalTxt}`, "ok");
 
-      // Llevar al usuario al formulario (por si la imagen quedó arriba)
-      if (iNum) {
-        iNum.scrollIntoView({ behavior:'smooth', block:'center' });
-      }
+      if (iNum) iNum.scrollIntoView({ behavior:'smooth', block:'center' });
 
-      // Si todo está completo, habilita registrar
       if (iNum?.value && iFecha?.value && iTotal?.value) {
         btnRegistrar && (btnRegistrar.disabled = false);
       }
@@ -173,6 +164,7 @@
 
   // ===== Cámara =====
   async function openCamera() {
+    console.log("[registrar.js] openCamera click");
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
         setStatus("Tu navegador no soporta cámara. Usa Adjuntar foto.", "err"); return;
@@ -200,7 +192,8 @@
       if ((!window.isSecureContext && location.hostname!=='localhost') || (location.protocol!=='https:' && location.hostname!=='localhost')){
         msg+=" (En móviles abre el sitio con HTTPS).";
       }
-      setStatus(msg,"err"); fileInput?.click();
+      setStatus(msg,"err");
+      fileInput?.click();
     }
   }
 
@@ -221,25 +214,24 @@
     const blob=dataURLtoBlob(dataURL);
     setFileInputFromBlob(blob,`ticket_${Date.now()}.jpg`);
     setStatus("📎 Foto capturada. Procesando OCR…","ok");
-    await autoProcessCurrentFile(); // AUTO
+    await autoProcessCurrentFile();
   }
 
   btnCam?.addEventListener('click', openCamera);
   btnClose?.addEventListener('click', stopCamera);
   btnShot?.addEventListener('click', captureFrame);
 
-  // ===== Subir archivo (AUTO) =====
+  // ===== Subir archivo =====
   btnPickFile?.addEventListener('click', ()=> fileInput?.click());
   fileInput?.addEventListener('change', async e=>{
     const f=e.target.files&&e.target.files[0];
     if (f){
       setPreview(f);
       setStatus("📎 Imagen cargada. Procesando OCR…","ok");
-      await autoProcessCurrentFile(); // AUTO
+      await autoProcessCurrentFile();
     }
   });
 
-  // ===== Drag & Drop (AUTO) =====
   if (dropzone) {
     dropzone.addEventListener('click', ()=> fileInput?.click());
     dropzone.addEventListener('dragover', e => {
@@ -254,12 +246,11 @@
         fileInput.files = dt.files;
         setPreview(e.dataTransfer.files[0]);
         setStatus("📎 Imagen cargada. Procesando OCR…","ok");
-        await autoProcessCurrentFile(); // AUTO
+        await autoProcessCurrentFile();
       }
     });
   }
 
-  // ===== Helpers RTDB para puntos/lista tickets =====
   function fmtDate(ms){
     if(!ms) return '';
     try{
@@ -310,25 +301,21 @@
 
   function attachUserStreams(uid){
     if (!uid) return;
-    // Limpia listeners anteriores
     unsub.forEach(fn=>{ try{fn();}catch{} });
     unsub = [];
 
-    // Puntos base (acumulados)
     const pRef = db.ref(`users/${uid}/points`);
     pRef.on('value', snap=>{
       const val = Number(snap.val()||0);
-      if (elDisp) elDisp.textContent = String(val); // valor bruto mientras se calcula reserved
+      if (elDisp) elDisp.textContent = String(val);
       computeAvailable(uid);
     });
     unsub.push(()=> pRef.off());
 
-    // Cupones para reservados
     const rRef = db.ref(`users/${uid}/redemptions`);
     rRef.on('value', ()=> computeAvailable(uid));
     unsub.push(()=> rRef.off());
 
-    // Tickets (lista y acumulados)
     const tRef = db.ref(`users/${uid}/tickets`);
     tRef.on('value', snap=>{
       const val = snap.val()||{};
@@ -348,7 +335,6 @@
     unsub.push(()=> tRef.off());
   }
 
-  // ===== Guardado RTDB (registrar ticket) =====
   function addMonths(date, months){
     const d=new Date(date.getTime());
     d.setMonth(d.getMonth()+months);
@@ -383,7 +369,6 @@
       return;
     }
 
-    // Límite por día
     if (DAY_LIMIT>0){
       try{
         const {start,end}=startEndOfToday();
@@ -411,7 +396,6 @@
     const indexRef = db.ref(`ticketsIndex/${ymd}/${folio}`);
 
     try{
-      // Índice anti-duplicado
       const idxTx = await indexRef.transaction(curr=>{
         if (curr) return;
         return { uid:user.uid, createdAt:Date.now() };
@@ -422,7 +406,6 @@
         return;
       }
 
-      // Crear ticket (sin productos)
       const res = await ticketRef.transaction(current=>{
         if (current) return;
         return {
@@ -441,10 +424,8 @@
         return;
       }
 
-      // Sumar al saldo
       await pointsRef.transaction(curr => (Number(curr)||0) + puntosEnteros);
 
-      // Guarda mensaje para mostrar en panel.html
       try {
         localStorage.setItem('panelAward', JSON.stringify({
           ts: Date.now(),
@@ -468,36 +449,28 @@
     }
   }
 
-  // ===== Sesión y eventos =====
   auth.onAuthStateChanged(user=>{
-    isLogged=!!user;
-
-    // Limpia listeners anteriores
     unsub.forEach(fn=>{ try{fn();}catch{} });
     unsub = [];
 
     if (!user){
-      // si no está logueado, lo mandamos al login
       window.location.href = 'index.html';
       return;
     }
-
-    greetEl && (greetEl.textContent=`Registro de ticket — ${user.email}`);
-    // Campos se habilitan después del OCR
-    attachUserStreams(user.uid); // 🔹 para que los puntos coincidan con panel.html
+    if (greetEl) greetEl.textContent = `Registro de ticket — ${user.email}`;
+    attachUserStreams(user.uid);
   });
 
   btnRegistrar?.addEventListener('click', registrarTicketRTDB);
 
-  // Botón “Regresar” → panel.html (NO cierra sesión)
+  // 🔹 Botón “Regresar” → panel.html
   btnBack?.addEventListener('click', () => {
+    console.log("[registrar.js] click Regresar → panel.html");
     window.location.href = 'panel.html';
   });
 
-  // init
   disableAllEdits();
 
-  // ===== Logs de errores =====
   window.addEventListener("error", (e) => {
     console.error("[window error]", e.error || e.message || e);
   });
