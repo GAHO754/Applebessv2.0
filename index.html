@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Iniciar Sesión - Applebee's</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="manzanas.png">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body> 
+  <div class="container">
+    <div class="form-card">
+      <h1>Iniciar Sesión</h1>
+
+      <div class="field-group">
+        <input type="text" id="emailOrPhone" placeholder="Correo o teléfono" autocomplete="username" />
+        <span class="tooltip">❓
+          <span class="tooltiptext">Puedes ingresar tu correo electrónico o número de teléfono registrado.</span>
+        </span>
+      </div>
+
+      <input type="password" id="password" placeholder="Contraseña" autocomplete="current-password" />
+      <button id="btnLogin">Entrar</button>
+
+      <p class="link">
+        ¿No tienes cuenta? <a href="register.html">Crear una nueva</a>
+      </p>
+      <p class="link">
+        <a href="#" id="lnkReset">¿Olvidaste tu contraseña?</a>
+      </p>
+    </div>
+  </div>
+
+  <script>
+  // Soporte para tooltips táctiles (móviles)
+  document.querySelectorAll('.tooltip').forEach(tip => {
+    tip.addEventListener('click', e => {
+      e.stopPropagation(); // evita cerrar inmediatamente
+      // Quita la clase activa de los demás
+      document.querySelectorAll('.tooltip.active').forEach(t => {
+        if (t !== tip) t.classList.remove('active');
+      });
+      // Alterna visibilidad
+      tip.classList.toggle('active');
+    });
+  });
+
+  // Cierra cualquier tooltip al tocar fuera
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.tooltip.active').forEach(t => t.classList.remove('active'));
+  });
+  </script>
+  
+  <!-- Firebase (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="auth.js"></script>
+</body>
+</html>

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Registrar ticket</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="manzanas.png">
+  <link rel="stylesheet" href="registrar.css" />
+
+  <style>
+    /* Contenedor del modal */
+    .camera-modal{
+      display:none;position:fixed;inset:0;z-index:9999;
+      background:rgba(0,0,0,.85);backdrop-filter:blur(2px);
+      align-items:center;justify-content:center;padding:16px;
+    }
+    .camera-box{
+      width:min(680px,96vw);max-height:92vh;overflow:hidden;
+      background:#0b0b0b;border:1px solid rgba(255,255,255,.12);
+      border-radius:14px;padding:12px;
+    }
+    .camera-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+
+    /* Vista de cámara con botón flotante */
+    .camera-view{position:relative}
+    #cameraVideo{
+      display:block;width:100%;height:auto;max-height:70vh;
+      background:#000;border-radius:12px;object-fit:cover;
+    }
+
+    .camera-fade{
+      position:absolute;left:0;right:0;bottom:0;height:96px;border-radius:0 0 12px 12px;
+      background:linear-gradient(to top, rgba(0,0,0,.75), rgba(0,0,0,0));
+      pointer-events:none;
+    }
+
+    .capture-btn{
+      position:absolute;left:50%;bottom:12px;transform:translateX(-50%);
+      z-index:3;padding:12px 18px;border-radius:12px;
+      box-shadow:0 10px 28px rgba(0,0,0,.35);
+    }
+
+    @supports(padding: max(0px)) {
+      .capture-btn{ bottom: max(12px, env(safe-area-inset-bottom)); }
+    }
+
+    @media (max-width:520px){
+      .capture-btn{ width:calc(100% - 24px) }
+    }
+
+    /* Top bar */
+    .top-bar{
+      height:56px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between
+    }
+    .applebees-title{font-size:20px;margin:0}
+
+    /* Página */
+    .page{max-width:980px;margin:110px auto 60px;padding:16px}
+    .grid-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+    .card{background:rgba(25,25,25,.7);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px}
+    .muted{opacity:.85}
+    .big{font-size:28px;font-weight:800;letter-spacing:.2px}
+    .ok{color:#9be49b} .warn{color:#ffdfaa} .err{color:#ff9a9a}
+
+    /* Botones */
+    .btn-cta, .btn-primary, .btn-secondary{
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
+      padding:12px 18px;border-radius:12px;text-decoration:none;font-weight:700;
+      border:0;cursor:pointer;user-select:none
+    }
+    .btn-cta{background:#f03535;color:#fff}
+    .btn-cta:active{transform:scale(.98)}
+    .btn-primary{background:#1f6feb;color:#fff}
+    .btn-secondary{background:transparent;border:1px solid rgba(255,255,255,.25);color:#fff}
+
+    /* Tabla */
+    table{
+      width:100%;border-collapse:collapse;font-size:14px;background:rgba(25,25,25,.6);
+      border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden
+    }
+    th,td{padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.08)}
+    th{text-align:left;color:#ffd4d4}
+
+    /* Upload / dropzone */
+    .upload-area{display:grid;gap:10px}
+    .dropzone{
+      border:1px dashed rgba(255,255,255,.35);border-radius:14px;padding:14px;text-align:center;
+      background:rgba(25,25,25,.45)
+    }
+    .dropzone.drag{background:rgba(25,25,25,.65)}
+    .dropzone img.preview{
+      max-width:100%;
+      max-height:220px;          /* 🔹 NO tapa el formulario */
+      height:auto;
+      border-radius:10px;
+      display:block;
+      margin:8px auto 0;
+      object-fit:contain;
+    }
+
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media (max-width:540px){ .grid-2{grid-template-columns:1fr} }
+
+    .validacion-msg{margin-top:8px}
+    .validacion-msg.ok{color:#9be49b}
+    .validacion-msg.err{color:#ff9a9a}
+
+    /* Toast */
+    .toast{
+      position:fixed;left:50%;top:24px;transform:translateX(-50%);
+      background:rgba(20,20,20,.96);color:#fff;border:1px solid rgba(255,255,255,.15);
+      border-radius:12px;padding:14px 16px;z-index:9999;box-shadow:0 10px 35px rgba(0,0,0,.4);
+      max-width:90vw;display:none
+    }
+    .toast.show{display:block;animation:pop .18s ease-out}
+    @keyframes pop{
+      from{transform:translateX(-50%) scale(.98);opacity:.0}
+      to{transform:translateX(-50%) scale(1);opacity:1}
+    }
+
+    /* Badge IA y debug opcional */
+    #iaBadge{
+      display:inline-block;margin-top:8px;padding:4px 8px;border-radius:999px;
+      font-size:11px;background:#444;color:#fff;opacity:.9;
+    }
+    #ocrDebug{
+      margin-top:12px;font-size:11px;white-space:pre-wrap;
+      max-height:180px;overflow:auto;opacity:.7;
+    }
+  </style>
+</head>
+<body class="bg-animated">
+  <header class="top-bar">
+    <div class="left-section">
+      <h1 class="applebees-title">Applebee’s</h1>
+    </div>
+    <div class="right-section">
+      <!-- 🔹 Antes decía “Salir”, ahora “Regresar” -->
+      <button id="btnLogout" class="btn-secondary" type="button">Regresar</button>
+    </div>
+  </header>
+
+  <main class="page">
+    <p id="userGreeting" class="muted" style="margin-bottom:12px;"></p>
+
+    <!-- ====== RESUMEN DE PUNTOS (deben coincidir con panel.html) ====== -->
+    <section class="grid-cards" style="margin-bottom:18px">
+      <article class="card">
+        <div class="muted">Disponibles</div>
+        <div class="big" id="ptsDisponibles">0</div>
+      </article>
+      <article class="card">
+        <div class="muted">Reservados</div>
+        <div class="big" id="ptsReservados">0</div>
+      </article>
+      <article class="card">
+        <div class="muted">Acumulados</div>
+        <div class="big" id="ptsTotales">0</div>
+      </article>
+    </section>
+
+    <!-- ====== REGISTRO RÁPIDO EN EL PANEL ====== -->
+    <section class="card panel-option" id="subida-ticket">
+      <h2>📸 Captura tu ticket y llena tus datos</h2>
+
+      <!-- Subida/Cámara -->
+      <div class="upload-area">
+        <label for="ticketFile">📎 Foto del ticket (opcional)</label>
+
+        <div class="dropzone" id="dropzone" aria-label="Arrastra tu ticket aquí">
+          <p>Arrastra y suelta la imagen aquí</p>
+        </div>
+
+        <input type="file" id="ticketFile" accept="image/*" style="display:none;" />
+
+        <div class="upload-actions" style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="btnSeleccionarArchivo" type="button" class="btn-secondary">📎 Subir archivo</button>
+          <button id="btnAbrirCamara" type="button" class="btn-primary">📷 Tomar foto</button>
+        </div>
+
+        <!-- Estado OCR + IA -->
+        <p id="ocrStatus" class="validacion-msg"></p>
+        <span id="iaBadge">IA: esperando…</span>
+        <pre id="ocrDebug" style="display:none;"></pre>
+      </div>
+
+      <!-- === MODAL CÁMARA === -->
+      <div class="camera-modal" id="cameraModal" aria-hidden="true">
+        <div class="camera-box">
+          <div class="camera-header">
+            <h3>Tomar foto del ticket</h3>
+            <button id="btnCerrarCamara" class="btn-secondary" type="button">Cerrar</button>
+          </div>
+
+          <div class="camera-view">
+            <video id="cameraVideo" playsinline autoplay muted></video>
+            <div class="camera-fade"></div>
+            <button id="btnCapturar" class="btn-cta capture-btn" type="button">
+              📸 Capturar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Form manual -->
+      <div class="upload-area">
+        <div class="grid-2">
+          <div>
+            <label for="inputTicketNumero">Número de ticket</label>
+            <input type="text" id="inputTicketNumero" placeholder="Ej. 123456" />
+          </div>
+          <div>
+            <label for="inputTicketFecha">Fecha de consumo</label>
+            <input type="date" id="inputTicketFecha" />
+          </div>
+        </div>
+
+        <label for="inputTicketTotal">Total pagado</label>
+        <input type="number" id="inputTicketTotal" step="0.01" placeholder="Ej. 249.90" />
+
+        <button id="btnRegistrarTicket" type="button" class="btn-cta">Registrar Ticket</button>
+      </div>
+
+      <div class="ticket-result">
+        <p id="ticketValidacion" class="validacion-msg"></p>
+      </div>
+    </section>
+
+    <!-- ====== ÚLTIMOS TICKETS ====== -->
+    <section class="card" style="margin-top:18px">
+      <h3>Mis últimos tickets</h3>
+      <table>
+        <thead>
+          <tr><th>Fecha</th><th>Folio</th><th>Total</th><th>Puntos</th><th>Vence</th></tr>
+        </thead>
+        <tbody id="tbodyTickets">
+          <tr><td colspan="5" class="muted">Sin tickets.</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <div class="toast" id="awardToast"></div>
+
+  <footer><p style="text-align:center;opacity:.7">© 2025 Great American Hospitality</p></footer>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <!-- Tesseract (OCR) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+  <!-- Parser OCR + IA -->
+  <script src="ocr.js"></script>
+
+  <!-- Lógica registrar (cámara + OCR + RTDB + puntos) -->
+  <script src="registrr.js"></script>
+</body>
+</html>
