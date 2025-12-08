@@ -29,6 +29,7 @@
       padding:12px;
       display:flex;
       flex-direction:column;
+      overflow-y:auto;         /* si es muy alto, permite scroll */
     }
     .camera-header{
       display:flex;
@@ -44,7 +45,7 @@
     }
     #cameraVideo{
       width:100%;
-      max-height:60vh;       /* 👈 vídeo más bajo para que quepa el botón */
+      max-height:60vh;         /* 🔹 el video nunca ocupa toda la altura */
       height:auto;
       border-radius:12px;
       background:#000;
@@ -55,9 +56,19 @@
       display:flex;
       justify-content:center;
     }
-    .capture-btn{
-      padding:12px 32px;
+    /* 🔴 Botón de captura NUEVO (no reutiliza clases viejas) */
+    .btn-capture{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      padding:12px 40px;
       border-radius:999px;
+      border:0;
+      cursor:pointer;
+      background:#f03535;
+      color:#fff;
+      font-weight:700;
       box-shadow:0 10px 28px rgba(0,0,0,.35);
     }
 
@@ -76,7 +87,7 @@
     .big{font-size:28px;font-weight:800;letter-spacing:.2px}
     .ok{color:#9be49b} .warn{color:#ffdfaa} .err{color:#ff9a9a}
 
-    /* Botones */
+    /* Botones genéricos */
     .btn-cta, .btn-primary, .btn-secondary{
       display:inline-flex;align-items:center;justify-content:center;gap:8px;
       padding:12px 18px;border-radius:12px;text-decoration:none;font-weight:700;
@@ -207,7 +218,8 @@
           </div>
 
           <div class="camera-actions">
-            <button id="btnCapturar" class="btn-cta capture-btn" type="button">
+            <!-- 🔴 Botón de captura con clase nueva -->
+            <button id="btnCapturar" type="button" class="btn-capture">
               📸 Capturar
             </button>
           </div>
