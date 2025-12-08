@@ -15,16 +15,30 @@
       align-items:center;justify-content:center;padding:16px;
     }
     .camera-box{
-      width:min(680px,96vw);max-height:92vh;overflow:hidden;
-      background:#0b0b0b;border:1px solid rgba(255,255,255,.12);
-      border-radius:14px;padding:12px;
+      width:min(680px,96vw);
+      max-height:92vh;
+      background:#0b0b0b;
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:14px;
+      padding:12px;
+      overflow:visible;          /* 👈 ya NO recorta el botón */
     }
+
     .camera-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 
-    .camera-view{position:relative}
+        /* Dejar espacio extra para el botón flotante */
+    .camera-view{
+      position:relative;
+      padding-bottom:80px;      /* 👈 espacio donde cabe el botón rojo */
+    }
+
+    /* Evitar que el video “tape” el botón en pantallas bajas */
     #cameraVideo{
-      display:block;width:100%;height:auto;max-height:70vh;
-      background:#000;border-radius:12px;object-fit:cover;
+      max-height:calc(70vh - 80px);
+      width:100%;
+      height:auto;
+      border-radius:12px;
+      object-fit:cover;
     }
 
     .camera-fade{
@@ -60,8 +74,6 @@
     .muted{opacity:.85}
     .big{font-size:28px;font-weight:800;letter-spacing:.2px}
     .ok{color:#9be49b} .warn{color:#ffdfaa} .err{color:#ff9a9a}
-
-    .small-muted{font-size:13px;opacity:.75;margin-top:4px}
 
     /* Botones */
     .btn-cta, .btn-primary, .btn-secondary{
@@ -134,7 +146,7 @@
       <h1 class="applebees-title">Applebee’s</h1>
     </div>
     <div class="right-section">
-      <!-- botón Regresar -->
+      <!-- 🔹 botón Regresar -->
       <button id="btnLogout" class="btn-secondary" type="button">Regresar</button>
     </div>
   </header>
@@ -142,26 +154,24 @@
   <main class="page">
     <p id="userGreeting" class="muted" style="margin-bottom:12px;"></p>
 
-    <!-- 🔹 RESUMEN DE PUNTOS -->
-    <section class="grid-cards" style="margin-bottom:4px">
+    <!-- RESUMEN PUNTOS -->
+    <section class="grid-cards" style="margin-bottom:18px">
       <article class="card">
-        <div class="muted">Puntos disponibles</div>
+        <div class="muted">Disponibles</div>
         <div class="big" id="ptsDisponibles">0</div>
       </article>
       <article class="card">
-        <div class="muted">Puntos reservados</div>
+        <div class="muted">Reservados</div>
         <div class="big" id="ptsReservados">0</div>
       </article>
       <article class="card">
-        <div class="muted">Puntos acumulados</div>
+        <div class="muted">Acumulados</div>
         <div class="big" id="ptsTotales">0</div>
       </article>
     </section>
-    <!-- Línea tipo panel: Reservados / Canjeados -->
-    <p id="resumenPuntos" class="small-muted"></p>
 
     <!-- REGISTRO -->
-    <section class="card panel-option" id="subida-ticket" style="margin-top:10px">
+    <section class="card panel-option" id="subida-ticket">
       <h2>📸 Captura tu ticket y llena tus datos</h2>
 
       <!-- Subida/Cámara -->
@@ -256,7 +266,7 @@
   <!-- Parser OCR -->
   <script src="ocr.js"></script>
 
-  <!-- Lógica de registro -->
+  <!-- 🔹 MUY IMPORTANTE: nombre EXACTO del archivo JS -->
   <script src="registrar.js"></script>
 </body>
 </html>
