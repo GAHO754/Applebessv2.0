@@ -8,11 +8,17 @@
   <link rel="stylesheet" href="registrar.css" />
 
   <style>
-    /* Contenedor del modal */
+    /* ===== MODAL CÁMARA ===== */
     .camera-modal{
-      display:none;position:fixed;inset:0;z-index:9999;
-      background:rgba(0,0,0,.85);backdrop-filter:blur(2px);
-      align-items:center;justify-content:center;padding:16px;
+      display:none;
+      position:fixed;
+      inset:0;
+      z-index:9999;
+      background:rgba(0,0,0,.85);
+      backdrop-filter:blur(2px);
+      align-items:center;
+      justify-content:center;
+      padding:16px;
     }
     .camera-box{
       width:min(680px,96vw);
@@ -21,49 +27,44 @@
       border:1px solid rgba(255,255,255,.12);
       border-radius:14px;
       padding:12px;
-      overflow:visible;          /* 👈 ya NO recorta el botón */
+      display:flex;
+      flex-direction:column;
     }
-
-    .camera-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-
-        /* Dejar espacio extra para el botón flotante */
+    .camera-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:8px;
+    }
     .camera-view{
-      position:relative;
-      padding-bottom:80px;      /* 👈 espacio donde cabe el botón rojo */
+      flex:1 1 auto;
+      display:flex;
+      align-items:center;
+      justify-content:center;
     }
-
-    /* Evitar que el video “tape” el botón en pantallas bajas */
     #cameraVideo{
-      max-height:calc(70vh - 80px);
       width:100%;
+      max-height:60vh;       /* 👈 vídeo más bajo para que quepa el botón */
       height:auto;
       border-radius:12px;
-      object-fit:cover;
+      background:#000;
+      object-fit:contain;
     }
-
-    .camera-fade{
-      position:absolute;left:0;right:0;bottom:0;height:96px;border-radius:0 0 12px 12px;
-      background:linear-gradient(to top, rgba(0,0,0,.75), rgba(0,0,0,0));
-      pointer-events:none;
+    .camera-actions{
+      margin-top:12px;
+      display:flex;
+      justify-content:center;
     }
-
     .capture-btn{
-      position:absolute;left:50%;bottom:12px;transform:translateX(-50%);
-      z-index:3;padding:12px 18px;border-radius:12px;
+      padding:12px 32px;
+      border-radius:999px;
       box-shadow:0 10px 28px rgba(0,0,0,.35);
-    }
-
-    @supports(padding: max(0px)) {
-      .capture-btn{ bottom: max(12px, env(safe-area-inset-bottom)); }
-    }
-
-    @media (max-width:520px){
-      .capture-btn{ width:calc(100% - 24px) }
     }
 
     /* Top bar */
     .top-bar{
-      height:56px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between
+      height:56px;padding:10px 12px;
+      display:flex;align-items:center;justify-content:space-between
     }
     .applebees-title{font-size:20px;margin:0}
 
@@ -146,7 +147,6 @@
       <h1 class="applebees-title">Applebee’s</h1>
     </div>
     <div class="right-section">
-      <!-- 🔹 botón Regresar -->
       <button id="btnLogout" class="btn-secondary" type="button">Regresar</button>
     </div>
   </header>
@@ -204,7 +204,9 @@
 
           <div class="camera-view">
             <video id="cameraVideo" playsinline autoplay muted></video>
-            <div class="camera-fade"></div>
+          </div>
+
+          <div class="camera-actions">
             <button id="btnCapturar" class="btn-cta capture-btn" type="button">
               📸 Capturar
             </button>
@@ -266,7 +268,7 @@
   <!-- Parser OCR -->
   <script src="ocr.js"></script>
 
-  <!-- 🔹 MUY IMPORTANTE: nombre EXACTO del archivo JS -->
+  <!-- Lógica registrar -->
   <script src="registrar.js"></script>
 </body>
 </html>
