@@ -1,6 +1,6 @@
-// registrar.js — RTDB + Cámara + OCR AUTO (sin productos) + puntos 10..35 por total
+// registrar.js — RTDB + Cámara + OCR AUTO (sin productos) + resumen de puntos claro
 (() => {
-  console.log("[registrar.js] cargado");  // 🔹 para verificar en consola
+  console.log("[registrar.js] cargado");
 
   const $ = id => document.getElementById(id);
 
@@ -19,21 +19,22 @@
   const btnShot      = $('btnCapturar');
   const ocrStatus    = $('ocrStatus');
 
-  const iNum   = $('inputTicketNumero');   // folio
-  const iFecha = $('inputTicketFecha');    // <input type="date">
-  const iTotal = $('inputTicketTotal');    // total
+  const iNum   = $('inputTicketNumero');
+  const iFecha = $('inputTicketFecha');
+  const iTotal = $('inputTicketTotal');
 
   const btnRegistrar = $('btnRegistrarTicket');
   const msgTicket    = $('ticketValidacion');
   const greetEl      = $('userGreeting');
 
-  const elDisp = $('ptsDisponibles');
-  const elResv = $('ptsReservados');
-  const elTot  = $('ptsTotales');
-  const tbody  = $('tbodyTickets');
-  const toast  = $('awardToast');
+  const elDisp   = $('ptsDisponibles');
+  const elResv   = $('ptsReservados');
+  const elTot    = $('ptsTotales');
+  const tbody    = $('tbodyTickets');
+  const toast    = $('awardToast');
+  const resumenP = $('resumenPuntos');
 
-  const btnBack = $('btnLogout'); // botón “Regresar”
+  const btnBack  = $('btnLogout');
 
   // ===== Parámetros de negocio =====
   const VENCE_DIAS   = 180;
@@ -47,6 +48,14 @@
   let currentPreviewURL = null;
   let unsub = [];
 
+  // Estado para el resumen
+  const ptsState = {
+    totalEarned: 0,  // puntos ganados por tickets (histórico)
+    reserved:    0,  // puntos en cupones pendientes
+    redeemed:    0   // puntos ya canjeados
+  };
+
+  /* ===== Helpers UI ===== */
   function setStatus(msg, type='') {
     if (!ocrStatus) return;
     ocrStatus.className = 'validacion-msg';
@@ -108,6 +117,7 @@
     return file;
   }
 
+  // ===== Cálculo de puntos desde el total del ticket =====
   function computePointsFromTotal(total) {
     if (!Number.isFinite(total) || total <= 0) return MIN_POINTS;
     const clamped = Math.max(MIN_SPEND, Math.min(MAX_SPEND, total));
@@ -116,6 +126,21 @@
     return Math.max(MIN_POINTS, Math.min(MAX_POINTS, pts));
   }
 
+  /* ===== Resumen numérico (Disponibles / Reservados / Acumulados / Canjeados) ===== */
+  function updatePointsSummary() {
+    const available = Math.max(0, ptsState.totalEarned - ptsState.reserved - ptsState.redeemed);
+
+    if (elDisp) elDisp.textContent = String(available);        // Disponibles
+    if (elResv) elResv.textContent = String(ptsState.reserved);// Reservados
+    if (elTot)  elTot.textContent  = String(ptsState.totalEarned); // Acumulados
+
+    if (resumenP) {
+      resumenP.textContent =
+        `Reservados: ${ptsState.reserved} pts · Canjeados: ${ptsState.redeemed} pts`;
+    }
+  }
+
+  /* ===== Puente con ocr.js ===== */
   async function waitForOCR(tries = 30, delayMs = 100) {
     for (let i = 0; i < tries; i++) {
       if (typeof window.processTicketWithIA === "function") return true;
@@ -275,74 +300,60 @@
     `).join('');
   }
 
-  // ===== Cálculo de puntos disponibles / reservados (igual que panel.html) =====
-async function computeAvailable(uid){
-  try{
-    const [pSnap, rSnap] = await Promise.all([
-      db.ref(`users/${uid}/points`).once('value'),
-      db.ref(`users/${uid}/redemptions`).once('value')
-    ]);
-    const base = Number(pSnap.val()||0);  // puntos base (los 109)
-    const now = Date.now();
-    const reds = rSnap.val()||{};
-    let reserved = 0;
-    Object.values(reds).forEach(r=>{
-      const st = String(r.status||'').toLowerCase();
-      const expOk = !r.expiresAt || Number(r.expiresAt)>now;
-      if (st==='pendiente' && expOk) reserved += Number(r.cost||0);
+  /* ===== Streams de usuario: tickets + redenciones ===== */
+  function attachUserStreams(uid){
+    if (!uid) return;
+    unsub.forEach(fn=>{ try{fn();}catch{} });
+    unsub = [];
+
+    // Tickets (para total acumulado y tabla)
+    const tRef = db.ref(`users/${uid}/tickets`);
+    tRef.on('value', snap=>{
+      const val = snap.val()||{};
+      const arr = Object.values(val).map(v=>({
+        folio: v.folio,
+        fecha: v.fecha,
+        total: Number(v.total||0),
+        puntos: Number(v.points||v.puntosTotal||v.puntos?.total||0),
+        vence: Number(v.vencePuntos||0),
+        createdAt: Number(v.createdAt||0)
+      }));
+      arr.sort((a,b)=> (b.createdAt||0)-(a.createdAt||0));
+      renderTickets(arr.slice(0,12));
+
+      ptsState.totalEarned = arr.reduce((a,x)=> a + (x.puntos||0), 0);
+      updatePointsSummary();
     });
-    const visibles = Math.max(0, base - reserved);
+    unsub.push(()=> tRef.off());
 
-    if (elDisp) elDisp.textContent = String(visibles);  // 🔹 Disponibles
-    if (elResv) elResv.textContent = String(reserved);  // 🔹 Reservados
-  }catch(e){
-    console.warn('computeAvailable error', e);
+    // Redenciones (para reservados + canjeados)
+    const rRef = db.ref(`users/${uid}/redemptions`);
+    rRef.on('value', snap=>{
+      const reds = snap.val()||{};
+      let reserved = 0;
+      let redeemed = 0;
+      const now = Date.now();
+
+      Object.values(reds).forEach(r=>{
+        const cost = Number(r.cost||0);
+        const st   = String(r.status||'').toLowerCase();
+        const expOk = !r.expiresAt || Number(r.expiresAt)>now;
+
+        if (st === 'pendiente' && expOk) {
+          reserved += cost;
+        } else if (st === 'canjeado' || st === 'consumido' || st === 'usado') {
+          redeemed += cost;
+        }
+      });
+
+      ptsState.reserved = reserved;
+      ptsState.redeemed = redeemed;
+      updatePointsSummary();
+    });
+    unsub.push(()=> rRef.off());
   }
-}
 
-function attachUserStreams(uid){
-  if (!uid) return;
-  // Limpia listeners anteriores
-  unsub.forEach(fn=>{ try{fn();}catch{} });
-  unsub = [];
-
-  // Puntos base
-  const pRef = db.ref(`users/${uid}/points`);
-  pRef.on('value', snap=>{
-    const val = Number(snap.val()||0);
-    // primero muestra el raw mientras se recalcula
-    if (elDisp) elDisp.textContent = String(val);
-    computeAvailable(uid);   // 🔹 esto ajusta Disponibles/Reservados
-  });
-  unsub.push(()=> pRef.off());
-
-  // Cupones para reservados
-  const rRef = db.ref(`users/${uid}/redemptions`);
-  rRef.on('value', ()=> computeAvailable(uid));
-  unsub.push(()=> rRef.off());
-
-  // Tickets (lista y acumulados)
-  const tRef = db.ref(`users/${uid}/tickets`);
-  tRef.on('value', snap=>{
-    const val = snap.val()||{};
-    const arr = Object.values(val).map(v=>({
-      folio: v.folio,
-      fecha: v.fecha,
-      total: Number(v.total||0),
-      puntos: Number(v.points||v.puntosTotal||v.puntos?.total||0),
-      vence: Number(v.vencePuntos||0),
-      createdAt: Number(v.createdAt||0)
-    }));
-    arr.sort((a,b)=> (b.createdAt||0)-(a.createdAt||0));
-    renderTickets(arr.slice(0,12));
-    const sum = arr.reduce((a,x)=> a + (x.puntos||0), 0);
-
-    if (elTot) elTot.textContent = String(sum);  // 🔹 Acumulados
-  });
-  unsub.push(()=> tRef.off());
-}
-
-  
+  /* ===== Guardado RTDB ===== */
   function addMonths(date, months){
     const d=new Date(date.getTime());
     d.setMonth(d.getMonth()+months);
@@ -377,6 +388,7 @@ function attachUserStreams(uid){
       return;
     }
 
+    // Límite por día
     if (DAY_LIMIT>0){
       try{
         const {start,end}=startEndOfToday();
@@ -398,12 +410,13 @@ function attachUserStreams(uid){
     const vencePuntos=addMonths(fecha, Math.round(VENCE_DIAS/30));
     const userRef   = db.ref(`users/${user.uid}`);
     const ticketRef = userRef.child(`tickets/${folio}`);
-    const pointsRef = userRef.child('points');
+    const pointsRef = userRef.child('points'); // seguimos manteniendo este contador
 
     const ymd = ymdFromISO(fechaStr);
     const indexRef = db.ref(`ticketsIndex/${ymd}/${folio}`);
 
     try{
+      // índice anti-duplicado
       const idxTx = await indexRef.transaction(curr=>{
         if (curr) return;
         return { uid:user.uid, createdAt:Date.now() };
@@ -414,6 +427,7 @@ function attachUserStreams(uid){
         return;
       }
 
+      // crear ticket
       const res = await ticketRef.transaction(current=>{
         if (current) return;
         return {
@@ -432,6 +446,7 @@ function attachUserStreams(uid){
         return;
       }
 
+      // sumar al saldo base (para compatibilidad con el panel)
       await pointsRef.transaction(curr => (Number(curr)||0) + puntosEnteros);
 
       try {
@@ -457,24 +472,22 @@ function attachUserStreams(uid){
     }
   }
 
+  /* ===== Sesión y navegación ===== */
   auth.onAuthStateChanged(user=>{
-  unsub.forEach(fn=>{ try{fn();}catch{} });
-  unsub = [];
+    unsub.forEach(fn=>{ try{fn();}catch{} });
+    unsub = [];
 
-  if (!user){
-    window.location.href = 'index.html';
-    return;
-  }
-  if (greetEl) greetEl.textContent = `Registro de ticket — ${user.email}`;
-
-  // 🔹 IMPORTANTE: esto es lo que sincroniza los puntos en tiempo real
-  attachUserStreams(user.uid);
-});
-
+    if (!user){
+      window.location.href = 'index.html';
+      return;
+    }
+    if (greetEl) greetEl.textContent = `Registro de ticket — ${user.email}`;
+    attachUserStreams(user.uid);
+  });
 
   btnRegistrar?.addEventListener('click', registrarTicketRTDB);
 
-  // 🔹 Botón “Regresar” → panel.html
+  // Botón regresar → panel
   btnBack?.addEventListener('click', () => {
     console.log("[registrar.js] click Regresar → panel.html");
     window.location.href = 'panel.html';
