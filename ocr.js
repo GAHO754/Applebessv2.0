@@ -128,6 +128,36 @@ function detectGrandTotal(lines) {
   return null;
 }
 
+/* ====== DETECTOR: ¿PARECE UN TICKET? ====== */
+function isLikelyTicket(text, lines) {
+  const upper = String(text || "").toUpperCase();
+
+  const hasBrand =
+    /APPLEBEE'?S/.test(upper) ||
+    /WENDY'?S/.test(upper) ||
+    /GREAT AMERICAN/.test(upper) ||
+    /GA HOSPITALITY/.test(upper);
+
+  const hasTicketWord = /\bTICKET\b|\bCUENTA\b|\bCONSUMO\b/.test(upper);
+  const hasMesa    = /\bMESA\b/.test(upper);
+  const hasTotalW  = /(TOTAL( A PAGAR)?|IMPORTE TOTAL|TOTAL MXN|TOTAL CON PROPINA)/i.test(text);
+  const hasDate    = /(\d{1,2})[\/\-.](\d{1,2})[\/\-.](20\d{2})/.test(text);
+
+  const moneyMatches = text.match(/\$?\s*\d{2,3}(?:[.,]\d{3})*[.,]\d{2}/g) || [];
+
+  // Reglas simples: combinaciones típicas de ticket
+  if (lines.length < 5) return false; // muy pocas líneas
+
+  const rule1 = hasBrand && hasDate && moneyMatches.length >= 1;
+  const rule2 = hasTicketWord && hasTotalW && moneyMatches.length >= 1;
+  const rule3 = hasTotalW && moneyMatches.length >= 2 && lines.length >= 8;
+  const rule4 = hasMesa && hasDate && moneyMatches.length >= 1;
+
+  const ok = rule1 || rule2 || rule3 || rule4;
+  dbgNote(`isLikelyTicket: ${ok ? 'SÍ' : 'NO'} (brand=${hasBrand}, totalW=${hasTotalW}, money=${moneyMatches.length}, lines=${lines.length})`);
+  return ok;
+}
+
 /* ====== PREPROCESADO IMAGEN ====== */
 async function preprocessImage(file) {
   const bmp = await createImageBitmap(file);
@@ -278,6 +308,20 @@ async function processTicketWithIA(file) {
     const text = await runTesseract(canvas);
     dbgNote("OCR listo, longitud: " + text.length);
 
+    // 🔍 Partimos en líneas y guardamos en DBG
+    const lines = splitLines(text);
+
+    // 🔐 FILTRO: ¿Parece un ticket?
+    if (!isLikelyTicket(text, lines)) {
+      if (statusEl) {
+        statusEl.className = "validacion-msg err";
+        statusEl.textContent =
+          "❌ La foto no parece un ticket de consumo. Sube una foto del ticket completo (con logo, fecha y total).";
+      }
+      dbgDump();
+      return { text, folio: "", fecha: "", total: null };
+    }
+
     let folio = "", fecha = "", total = null;
 
     // 1) Intento con IA (si está configurada)
@@ -295,7 +339,6 @@ async function processTicketWithIA(file) {
     }
 
     // 2) Fallback / afinado local
-    const lines = splitLines(text);
     if (!folio) folio = extractFolio(lines) || "";
     if (!fecha) fecha = extractDateISO(text) || "";
     if (!Number.isFinite(total) || total <= 0) {
