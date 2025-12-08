@@ -275,66 +275,74 @@
     `).join('');
   }
 
-  async function computeAvailable(uid){
-    if (!uid) return;
-    try{
-      const [pSnap, rSnap] = await Promise.all([
-        db.ref(`users/${uid}/points`).once('value'),
-        db.ref(`users/${uid}/redemptions`).once('value')
-      ]);
-      const base = Number(pSnap.val()||0);
-      const now = Date.now();
-      const reds = rSnap.val()||{};
-      let reserved = 0;
-      Object.values(reds).forEach(r=>{
-        const st = String(r.status||'').toLowerCase();
-        const expOk = !r.expiresAt || Number(r.expiresAt)>now;
-        if (st==='pendiente' && expOk) reserved += Number(r.cost||0);
-      });
-      const visibles = Math.max(0, base - reserved);
-      if (elDisp) elDisp.textContent = String(visibles);
-      if (elResv) elResv.textContent = String(reserved);
-    }catch(e){
-      console.warn('computeAvailable error', e);
-    }
-  }
-
-  function attachUserStreams(uid){
-    if (!uid) return;
-    unsub.forEach(fn=>{ try{fn();}catch{} });
-    unsub = [];
-
-    const pRef = db.ref(`users/${uid}/points`);
-    pRef.on('value', snap=>{
-      const val = Number(snap.val()||0);
-      if (elDisp) elDisp.textContent = String(val);
-      computeAvailable(uid);
+  // ===== Cálculo de puntos disponibles / reservados (igual que panel.html) =====
+async function computeAvailable(uid){
+  try{
+    const [pSnap, rSnap] = await Promise.all([
+      db.ref(`users/${uid}/points`).once('value'),
+      db.ref(`users/${uid}/redemptions`).once('value')
+    ]);
+    const base = Number(pSnap.val()||0);  // puntos base (los 109)
+    const now = Date.now();
+    const reds = rSnap.val()||{};
+    let reserved = 0;
+    Object.values(reds).forEach(r=>{
+      const st = String(r.status||'').toLowerCase();
+      const expOk = !r.expiresAt || Number(r.expiresAt)>now;
+      if (st==='pendiente' && expOk) reserved += Number(r.cost||0);
     });
-    unsub.push(()=> pRef.off());
+    const visibles = Math.max(0, base - reserved);
 
-    const rRef = db.ref(`users/${uid}/redemptions`);
-    rRef.on('value', ()=> computeAvailable(uid));
-    unsub.push(()=> rRef.off());
-
-    const tRef = db.ref(`users/${uid}/tickets`);
-    tRef.on('value', snap=>{
-      const val = snap.val()||{};
-      const arr = Object.values(val).map(v=>({
-        folio: v.folio,
-        fecha: v.fecha,
-        total: Number(v.total||0),
-        puntos: Number(v.points||v.puntosTotal||v.puntos?.total||0),
-        vence: Number(v.vencePuntos||0),
-        createdAt: Number(v.createdAt||0)
-      }));
-      arr.sort((a,b)=> (b.createdAt||0)-(a.createdAt||0));
-      renderTickets(arr.slice(0,12));
-      const sum = arr.reduce((a,x)=> a + (x.puntos||0), 0);
-      if (elTot) elTot.textContent = String(sum);
-    });
-    unsub.push(()=> tRef.off());
+    if (elDisp) elDisp.textContent = String(visibles);  // 🔹 Disponibles
+    if (elResv) elResv.textContent = String(reserved);  // 🔹 Reservados
+  }catch(e){
+    console.warn('computeAvailable error', e);
   }
+}
 
+function attachUserStreams(uid){
+  if (!uid) return;
+  // Limpia listeners anteriores
+  unsub.forEach(fn=>{ try{fn();}catch{} });
+  unsub = [];
+
+  // Puntos base
+  const pRef = db.ref(`users/${uid}/points`);
+  pRef.on('value', snap=>{
+    const val = Number(snap.val()||0);
+    // primero muestra el raw mientras se recalcula
+    if (elDisp) elDisp.textContent = String(val);
+    computeAvailable(uid);   // 🔹 esto ajusta Disponibles/Reservados
+  });
+  unsub.push(()=> pRef.off());
+
+  // Cupones para reservados
+  const rRef = db.ref(`users/${uid}/redemptions`);
+  rRef.on('value', ()=> computeAvailable(uid));
+  unsub.push(()=> rRef.off());
+
+  // Tickets (lista y acumulados)
+  const tRef = db.ref(`users/${uid}/tickets`);
+  tRef.on('value', snap=>{
+    const val = snap.val()||{};
+    const arr = Object.values(val).map(v=>({
+      folio: v.folio,
+      fecha: v.fecha,
+      total: Number(v.total||0),
+      puntos: Number(v.points||v.puntosTotal||v.puntos?.total||0),
+      vence: Number(v.vencePuntos||0),
+      createdAt: Number(v.createdAt||0)
+    }));
+    arr.sort((a,b)=> (b.createdAt||0)-(a.createdAt||0));
+    renderTickets(arr.slice(0,12));
+    const sum = arr.reduce((a,x)=> a + (x.puntos||0), 0);
+
+    if (elTot) elTot.textContent = String(sum);  // 🔹 Acumulados
+  });
+  unsub.push(()=> tRef.off());
+}
+
+  
   function addMonths(date, months){
     const d=new Date(date.getTime());
     d.setMonth(d.getMonth()+months);
@@ -450,16 +458,19 @@
   }
 
   auth.onAuthStateChanged(user=>{
-    unsub.forEach(fn=>{ try{fn();}catch{} });
-    unsub = [];
+  unsub.forEach(fn=>{ try{fn();}catch{} });
+  unsub = [];
 
-    if (!user){
-      window.location.href = 'index.html';
-      return;
-    }
-    if (greetEl) greetEl.textContent = `Registro de ticket — ${user.email}`;
-    attachUserStreams(user.uid);
-  });
+  if (!user){
+    window.location.href = 'index.html';
+    return;
+  }
+  if (greetEl) greetEl.textContent = `Registro de ticket — ${user.email}`;
+
+  // 🔹 IMPORTANTE: esto es lo que sincroniza los puntos en tiempo real
+  attachUserStreams(user.uid);
+});
+
 
   btnRegistrar?.addEventListener('click', registrarTicketRTDB);
 
