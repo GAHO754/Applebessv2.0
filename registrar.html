@@ -61,6 +61,8 @@
     .big{font-size:28px;font-weight:800;letter-spacing:.2px}
     .ok{color:#9be49b} .warn{color:#ffdfaa} .err{color:#ff9a9a}
 
+    .small-muted{font-size:13px;opacity:.75;margin-top:4px}
+
     /* Botones */
     .btn-cta, .btn-primary, .btn-secondary{
       display:inline-flex;align-items:center;justify-content:center;gap:8px;
@@ -132,7 +134,7 @@
       <h1 class="applebees-title">Applebee’s</h1>
     </div>
     <div class="right-section">
-      <!-- 🔹 botón Regresar -->
+      <!-- botón Regresar -->
       <button id="btnLogout" class="btn-secondary" type="button">Regresar</button>
     </div>
   </header>
@@ -140,24 +142,26 @@
   <main class="page">
     <p id="userGreeting" class="muted" style="margin-bottom:12px;"></p>
 
-    <!-- RESUMEN PUNTOS -->
-    <section class="grid-cards" style="margin-bottom:18px">
+    <!-- 🔹 RESUMEN DE PUNTOS -->
+    <section class="grid-cards" style="margin-bottom:4px">
       <article class="card">
-        <div class="muted">Disponibles</div>
+        <div class="muted">Puntos disponibles</div>
         <div class="big" id="ptsDisponibles">0</div>
       </article>
       <article class="card">
-        <div class="muted">Reservados</div>
+        <div class="muted">Puntos reservados</div>
         <div class="big" id="ptsReservados">0</div>
       </article>
       <article class="card">
-        <div class="muted">Acumulados</div>
+        <div class="muted">Puntos acumulados</div>
         <div class="big" id="ptsTotales">0</div>
       </article>
     </section>
+    <!-- Línea tipo panel: Reservados / Canjeados -->
+    <p id="resumenPuntos" class="small-muted"></p>
 
     <!-- REGISTRO -->
-    <section class="card panel-option" id="subida-ticket">
+    <section class="card panel-option" id="subida-ticket" style="margin-top:10px">
       <h2>📸 Captura tu ticket y llena tus datos</h2>
 
       <!-- Subida/Cámara -->
@@ -252,7 +256,7 @@
   <!-- Parser OCR -->
   <script src="ocr.js"></script>
 
-  <!-- 🔹 MUY IMPORTANTE: nombre EXACTO del archivo JS -->
+  <!-- Lógica de registro -->
   <script src="registrar.js"></script>
 </body>
 </html>
