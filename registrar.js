@@ -353,7 +353,7 @@
     unsub.push(()=> rRef.off());
   }
 
-  /* ===== Guardado RTDB ===== */
+  /* ===== Helpers fechas / claves ===== */
   function addMonths(date, months){
     const d=new Date(date.getTime());
     d.setMonth(d.getMonth()+months);
@@ -370,6 +370,16 @@
     return String(iso||'').replace(/-/g,'');
   }
 
+  // 🔑 Construir claves únicas por (fecha, folio, total)
+  function buildTicketKeys(fechaStr, folio, totalNum){
+    const ymd = ymdFromISO(fechaStr);              // p.ej. "20251209"
+    const totalCents = Math.round(totalNum * 100); // p.ej. 259.00 → 25900
+    const indexKey = `${folio}_${totalCents}`;     // p.ej. "20004_25900"
+    const ticketId = `${ymd}_${folio}`;           // ID interno para el usuario
+    return { ymd, totalCents, indexKey, ticketId };
+  }
+
+  /* ===== Guardado RTDB ===== */
   async function registrarTicketRTDB(){
     const user=auth.currentUser;
     if (!user){
@@ -388,7 +398,7 @@
       return;
     }
 
-    // Límite por día
+    // Límite por día (por createdAt de tus tickets)
     if (DAY_LIMIT>0){
       try{
         const {start,end}=startEndOfToday();
@@ -404,33 +414,44 @@
       }catch(err){ console.warn('No pude verificar límite diario:',err); }
     }
 
+    // Claves seguras por (fecha, folio, total)
+    const { ymd, totalCents, indexKey, ticketId } = buildTicketKeys(fechaStr, folio, totalNum);
+
     const puntosEnteros = computePointsFromTotal(totalNum);
 
     const fecha=new Date(`${fechaStr}T00:00:00`);
     const vencePuntos=addMonths(fecha, Math.round(VENCE_DIAS/30));
     const userRef   = db.ref(`users/${user.uid}`);
-    const ticketRef = userRef.child(`tickets/${folio}`);
-    const pointsRef = userRef.child('points'); // seguimos manteniendo este contador
+    const ticketRef = userRef.child(`tickets/${ticketId}`); // ymd_folio
+    const pointsRef = userRef.child('points');
 
-    const ymd = ymdFromISO(fechaStr);
-    const indexRef = db.ref(`ticketsIndex/${ymd}/${folio}`);
+    // Índice global por combinación (fecha + folio + total)
+    const indexRef = db.ref(`ticketsIndex/${ymd}/${indexKey}`);
 
     try{
-      // índice anti-duplicado
+      // índice anti-duplicado global
       const idxTx = await indexRef.transaction(curr=>{
-        if (curr) return;
-        return { uid:user.uid, createdAt:Date.now() };
+        if (curr) return; // ya existe
+        return {
+          uid: user.uid,
+          folio,
+          fecha: fechaStr,
+          total: totalNum,
+          totalCents,
+          createdAt: Date.now()
+        };
       });
       if (!idxTx.committed){
         msgTicket.className='validacion-msg err';
-        msgTicket.textContent="❌ Este folio ya fue registrado para esa fecha.";
+        msgTicket.textContent = "❌ Este ticket (mismo folio, fecha y monto) ya fue registrado.";
         return;
       }
 
-      // crear ticket
+      // crear ticket (si ese ymd_folio no existe aún en la cuenta)
       const res = await ticketRef.transaction(current=>{
         if (current) return;
         return {
+          id: ticketId,
           folio,
           fecha: fechaStr,
           total: totalNum,
@@ -442,7 +463,7 @@
       });
       if (!res.committed){
         msgTicket.className='validacion-msg err';
-        msgTicket.textContent="❌ Este ticket ya está en tu cuenta.";
+        msgTicket.textContent="❌ Ya tienes un registro con ese folio y fecha.";
         return;
       }
 
@@ -454,7 +475,8 @@
           ts: Date.now(),
           folio,
           puntos: puntosEnteros,
-          total: totalNum
+          total: totalNum,
+          fecha: fechaStr
         }));
       } catch {}
 
