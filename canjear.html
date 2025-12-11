@@ -98,10 +98,9 @@
 </head>
 <body class="bg-animated">
   <header class="top-bar">
-    <a href="panel.html" class="link-back--pill"> ←Volver</a>
     <div class="center-section"><p></p></div>
     <div class="right-section">
-      <button id="btnLogout" class="btn-cta btn-logout" type="button">Salir</button>
+      <a href="panel.html" class="link-back--pill"> ←Volver</a>
     </div>
   </header>
 
@@ -433,10 +432,6 @@
   }
 
   // ====== App ======
-  document.getElementById('btnLogout').addEventListener('click', async () => {
-    try { await auth.signOut(); location.href = 'index.html'; } catch (e) { alert('No se pudo cerrar sesión'); }
-  });
-
   auth.onAuthStateChanged((user)=>{
     if(!user){ location.href='index.html'; return; }
     renderRewards();
