@@ -4,58 +4,175 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Iniciar Sesión - Applebee's</title>
+
   <link rel="icon" type="image/png" sizes="32x32" href="manzanas.png">
   <link rel="stylesheet" href="style.css" />
 </head>
-<body> 
+
+<body>
+
+  <!-- ❄️ CANVAS PARA EFECTO NIEVE -->
+  <canvas id="snowCanvas"></canvas>
+
   <div class="container">
     <div class="form-card">
       <h1>Iniciar Sesión</h1>
 
       <div class="field-group">
-        <input type="text" id="emailOrPhone" placeholder="Correo o teléfono" autocomplete="username" />
+        <input
+          type="text"
+          id="emailOrPhone"
+          placeholder="Correo o teléfono"
+          autocomplete="username"
+        />
         <span class="tooltip">❓
-          <span class="tooltiptext">Puedes ingresar tu correo electrónico o número de teléfono registrado.</span>
+          <span class="tooltiptext">
+            Puedes ingresar tu correo electrónico o número de teléfono registrado.
+          </span>
         </span>
       </div>
 
-      <input type="password" id="password" placeholder="Contraseña" autocomplete="current-password" />
+      <input
+        type="password"
+        id="password"
+        placeholder="Contraseña"
+        autocomplete="current-password"
+      />
+
       <button id="btnLogin">Entrar</button>
 
       <p class="link">
         ¿No tienes cuenta? <a href="register.html">Crear una nueva</a>
       </p>
+
       <p class="link">
         <a href="#" id="lnkReset">¿Olvidaste tu contraseña?</a>
       </p>
     </div>
   </div>
 
+  <!-- 🎄🎉 CAMBIO AUTOMÁTICO DE FONDO -->
   <script>
-  // Soporte para tooltips táctiles (móviles)
+(() => {
+  const IMG_NORMAL     = "LogoApplebees.png";
+  const IMG_NAVIDAD    = "imageapplenavidad.png";
+  const IMG_ANIO_NUEVO = "imageanonuevo.png";
+
+  const snowCanvas = document.getElementById("snowCanvas");
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const y = today.getFullYear();
+
+  const navStart = new Date(y, 11, 18);
+  const navEnd   = new Date(y, 11, 31);
+
+  const newYearStart = new Date(y + 1, 0, 1);
+  const newYearEnd   = new Date(y + 1, 0, 14);
+
+  let bg = IMG_NORMAL;
+  let showSnow = false;
+
+  if (today >= navStart && today <= navEnd) {
+    bg = IMG_NAVIDAD;
+    showSnow = true;
+  } 
+  else if (today >= newYearStart && today <= newYearEnd) {
+    bg = IMG_ANIO_NUEVO;
+    showSnow = true;
+  }
+
+  document.body.style.backgroundImage = `url("${bg}")`;
+
+  // ❄️ Mostrar u ocultar nieve
+  snowCanvas.style.display = showSnow ? "block" : "none";
+})();
+</script>
+
+
+  <!-- ❄️ EFECTO NIEVE -->
+  <script>
+  (() => {
+    const canvas = document.getElementById("snowCanvas");
+    const ctx = canvas.getContext("2d");
+
+    let w, h;
+    const flakes = [];
+    const FLAKE_COUNT = 120;
+
+    function resize() {
+      w = canvas.width  = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    function createFlake() {
+      return {
+        x: Math.random() * w,
+        y: Math.random() * h,
+        r: Math.random() * 3 + 1,
+        d: Math.random() * 1 + 0.5,
+        s: Math.random() * 0.5 + 0.2
+      };
+    }
+
+    for (let i = 0; i < FLAKE_COUNT; i++) flakes.push(createFlake());
+
+    function draw() {
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.beginPath();
+
+      for (const f of flakes) {
+        ctx.moveTo(f.x, f.y);
+        ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+      }
+      ctx.fill();
+      update();
+      requestAnimationFrame(draw);
+    }
+
+    function update() {
+      for (const f of flakes) {
+        f.y += f.d;
+        f.x += Math.sin(f.y * f.s);
+
+        if (f.y > h) {
+          f.y = -5;
+          f.x = Math.random() * w;
+        }
+      }
+    }
+
+    draw();
+  })();
+  </script>
+
+  <!-- 🧠 TOOLTIP TÁCTIL -->
+  <script>
   document.querySelectorAll('.tooltip').forEach(tip => {
     tip.addEventListener('click', e => {
-      e.stopPropagation(); // evita cerrar inmediatamente
-      // Quita la clase activa de los demás
+      e.stopPropagation();
       document.querySelectorAll('.tooltip.active').forEach(t => {
         if (t !== tip) t.classList.remove('active');
       });
-      // Alterna visibilidad
       tip.classList.toggle('active');
     });
   });
 
-  // Cierra cualquier tooltip al tocar fuera
   document.addEventListener('click', () => {
     document.querySelectorAll('.tooltip.active').forEach(t => t.classList.remove('active'));
   });
   </script>
-  
-  <!-- Firebase (compat) -->
+
+  <!-- 🔥 FIREBASE -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
   <script src="firebase-config.js"></script>
   <script src="auth.js"></script>
+
 </body>
 </html>
