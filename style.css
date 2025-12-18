@@ -5,32 +5,52 @@
   font-family: "Segoe UI", sans-serif;
 }
 
-/* Imagen de fondo + overlay */
+/* ✅ BODY perfectamente centrado + capas correctas */
 body {
-  background: url('LogoApplebees.png') no-repeat center center fixed;
+  background: url('LogoApplebees.png') no-repeat center center fixed; /* fallback */
   background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
   color: #fff;
+
+  /* ✅ Centro REAL */
+  min-height: 100vh;
   display: flex;
-  justify-content: center;
   align-items: center;
-  height: 100vh;
+  justify-content: center;
+
   position: relative;
+  overflow: hidden; /* clave para el canvas */
 }
 
+/* ✅ Overlay oscuro (debe ir arriba del canvas) */
 body::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6); /* Oscurece la imagen */
-  z-index: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1;
 }
 
+/* ✅ Nieve atrás del overlay */
+#snowCanvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ✅ Contenedor SIEMPRE centrado y encima */
 .container {
   width: 100%;
   max-width: 400px;
   padding: 20px;
+
   position: relative;
-  z-index: 1;
+  z-index: 2;
+
+  margin: 0 auto; /* refuerza centrado */
 }
 
 .form-card {
@@ -39,11 +59,6 @@ body::before {
   padding: 30px;
   box-shadow: 0 0 20px rgb(158, 3, 3);
   text-align: center;
-}
-
-.logo {
-  width: 100px;
-  margin-bottom: 15px;
 }
 
 h1 {
@@ -82,18 +97,8 @@ button:hover {
   background-color: #26c211;
 }
 
-button.secondary {
-  background-color: #444;
-}
-
-button.secondary:hover {
-  background-color: #555;
-}
-
-.divider {
-  margin: 20px 0 10px;
-  color: #888;
-  font-size: 14px;
+.link {
+  margin-top: 10px;
 }
 
 .link a {
@@ -119,6 +124,7 @@ button.secondary:hover {
 
 .field-group input {
   flex: 1;
+  margin-bottom: 0;
 }
 
 /* Ícono ❓ */
@@ -143,7 +149,7 @@ button.secondary:hover {
   padding: 6px 8px;
   position: absolute;
   z-index: 10;
-  top: 130%; /* aparece debajo */
+  top: 130%;
   left: 50%;
   transform: translateX(-50%) scale(0.95);
   opacity: 0;
